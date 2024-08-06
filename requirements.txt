@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+boto3
+sqlalchemy
+psycopg2-binary
+python-multipart
+streamlit
+requests
+botocore
