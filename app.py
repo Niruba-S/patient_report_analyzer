@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = "https://ffx5lzqebmrnwd37jfmyl4xeve0bcmvh.lambda-url.us-east-1.on.aws/"
 
 
 def analyze_and_summarize_pdf(file):
