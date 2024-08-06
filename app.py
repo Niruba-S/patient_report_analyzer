@@ -26,60 +26,45 @@ import requests
 load_dotenv()
 
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
 BACKEND_URL = "http://localhost:8000"
 
 
-def analyze_pdf(file):
+def analyze_and_summarize_pdf(file):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(file.getvalue())
             tmp_file_path = tmp_file.name
 
-        # File is now closed, we can safely open it for the request
         with open(tmp_file_path, 'rb') as pdf_file:
             files = {'file': pdf_file}
             response = requests.post(f"{BACKEND_URL}/analyze-text-from-pdf/", files=files)
 
-        # After the request is done, we can safely remove the file
         if os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
 
         if response.status_code == 200:
-            return response.json()['text']
+            result = response.json()
+            return result['result'], result['analysis_id']
         else:
             st.error(f"Error analyzing PDF: {response.status_code}")
-            return None
+            return None, None
     except Exception as e:
         st.error(f"Error processing PDF: {str(e)}")
-        return None
+        return None, None
     finally:
-        # Ensure the file is deleted even if an exception occurs
         if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
             try:
                 os.remove(tmp_file_path)
             except Exception as e:
                 st.error(f"Error deleting temporary file: {str(e)}")
-import logging
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
-def get_summary():
-    try:
-        logger.debug(f"Sending request to {BACKEND_URL}/summary/")
-        response = requests.post(f"{BACKEND_URL}/summary/")
-        logger.debug(f"Received response with status code: {response.status_code}")
-        response.raise_for_status()
-        summary = response.json()['summary']
-        logger.debug(f"Received summary: {summary[:100]}...")  # Log first 100 chars of summary
-        return summary
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error getting summary: {str(e)}")
-        st.error(f"Error getting summary: {str(e)}")
-        return None
+
 
 def chat_with_bot(user_message):
     data = {"user_message": user_message}
@@ -574,29 +559,24 @@ def update_password(email, new_password):
         cur.close()
         conn.close()
 def home_page():
-    
     st.markdown("<h3 style='font-size: 25px;'>Upload scanned images or PDFs of patient lab reports to get instant insights and answers to your queries</h3>", unsafe_allow_html=True)
     
     uploaded_file = st.file_uploader("Choose a file", type=["pdf"])
     if uploaded_file and st.button("ANALYZE"):
         with st.spinner("ANALYZING"):
             try:
-                text = analyze_pdf(uploaded_file)
-                if text:
-                    st.session_state.text = text
+                result, analysis_id = analyze_and_summarize_pdf(uploaded_file)
+                if result:
+                    st.session_state.text = result
+                    st.session_state.analysis_id = analysis_id
                     st.session_state.uploaded_file = uploaded_file
                     st.session_state.content_generated = True
             except Exception as e:
                 st.error(f"Error processing PDF: {e}")
     
     if st.session_state.content_generated:
-        st.header("REPORT")
+        st.markdown("Report Analysis")
         st.write(st.session_state.text)
-
-        st.header("AI GENERATED SUMMARY")
-        if 'sum' not in st.session_state or not st.session_state.sum:
-            st.session_state.sum = get_summary()
-        st.write(st.session_state.sum)
 
         # Move chatbot to sidebar when content is generated
         st.sidebar.header("Chatbot🤖")
