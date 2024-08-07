@@ -436,34 +436,40 @@ def send_welcome_email(email, username):
     message["To"] = email
 
     text = f"""
-    Dear {username},
+            Dear {username},
 
-    Welcome! Thank you for subscribing to our Gen AI Capability - Lab Report Analyzer on AWS Marketplace. Start exploring insights by uploading your lab reports and asking questions.
- 
-    For more updates - Please visit https://www.goml.io/
-    For assistance, contact subscriptions@goml.io
-    
-    
-    Warm regards,
-    
-    www.goml.io
-    """
+            Welcome, and thank you for subscribing to GoML's Gen AI Capability - Lab Report Analyzer on AWS Marketplace! Log in to gain detailed insights into your lab reports by uploading them and asking questions.
+
+            Click to Login - https://labreportanalyzer.goml.io/
+
+            For more updates - Please visit https://www.goml.io/
+            For assistance, contact contact@goml.io
+
+            Warm regards,
+
+            Team GoML
+            https://www.goml.io/
+            """
 
     html = f"""
-    <html>
-    <body>
-    <p>Dear {username},</p>
+            <html>
+            <body>
+            <p>Dear {username},</p>
 
-    <p>Welcome! Thank you for subscribing to our Gen AI Capability - Lab Report Analyzer on AWS Marketplace. Start exploring insights by uploading your lab reports and asking questions.</p>
-    <p> For more updates - Please visit <a href="https://www.goml.io/">https://www.goml.io/</a></p>
-    <p>For assistance, contact subscriptions@goml.io</p>
+            <p>Welcome, and thank you for subscribing to GoML's Gen AI Capability - Lab Report Analyzer on AWS Marketplace! Log in to gain detailed insights into your lab reports by uploading them and asking questions.</p>
 
-    <p>Warm regards,<br>
-    The GoML Team<br>
-    <a href="http://www.goml.io">www.goml.io</a></p>
-    </body>
-    </html>
-    """
+            <p>Click to Login - <a href="https://labreportanalyzer.goml.io/">https://labreportanalyzer.goml.io/</a></p>
+
+            <p>For more updates - Please visit <a href="https://www.goml.io/">https://www.goml.io/</a></p>
+            <p>For assistance, contact <a href="mailto:contact@goml.io">contact@goml.io</a></p>
+
+            <p>Warm regards,<br>
+            Team GoML<br>
+            <a href="https://www.goml.io/">https://www.goml.io/</a></p>
+            </body>
+            </html>
+            """
+
 
     part1 = MIMEText(text, "plain")
     part2 = MIMEText(html, "html")
