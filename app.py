@@ -118,7 +118,7 @@ def create_product_customers_table_and_update_users():
     conn = get_db_connection()
     if not conn:
         return
-    
+
     cur = conn.cursor()
     try:
         # Check if the product_customers table exists
@@ -132,8 +132,8 @@ def create_product_customers_table_and_update_users():
             cur.execute("""
                 DROP SEQUENCE IF EXISTS product_customers_id_seq;
             """)
-            
-            # Now create the table
+
+            # Now create the table (unchanged from original)
             cur.execute("""
                 CREATE TABLE product_customers (
                     id SERIAL PRIMARY KEY,
@@ -145,8 +145,8 @@ def create_product_customers_table_and_update_users():
 
         # Add customer_id column to users table if it doesn't exist
         cur.execute("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100)
+            ALTER TABLE users 
+            ADD COLUMN IF NOT EXISTS customer_id INTEGER
         """)
 
         # Check if the constraint already exists
@@ -161,9 +161,8 @@ def create_product_customers_table_and_update_users():
         if not constraint_exists:
             cur.execute("""
                 ALTER TABLE users
-                ADD CONSTRAINT fk_customer_id
-                FOREIGN KEY (customer_id)
-                REFERENCES product_customers(customer_id)
+                ADD CONSTRAINT fk_customer_id FOREIGN KEY (customer_id) 
+                REFERENCES product_customers(id)
             """)
 
         conn.commit()
@@ -174,6 +173,7 @@ def create_product_customers_table_and_update_users():
     finally:
         cur.close()
         conn.close()
+
 # Call this function at the start of your app
 create_users_table()
 create_product_customers_table_and_update_users()
