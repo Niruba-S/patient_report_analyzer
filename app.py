@@ -133,7 +133,7 @@ def create_product_customers_table_and_update_users():
                 DROP SEQUENCE IF EXISTS product_customers_id_seq;
             """)
 
-            # Now create the table (unchanged from original)
+            # Now create the table
             cur.execute("""
                 CREATE TABLE product_customers (
                     id SERIAL PRIMARY KEY,
@@ -143,13 +143,28 @@ def create_product_customers_table_and_update_users():
                 )
             """)
 
+        # Remove all foreign key constraints from users table
+        cur.execute("""
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (SELECT constraint_name 
+                          FROM information_schema.table_constraints 
+                          WHERE table_name = 'users' AND constraint_type = 'FOREIGN KEY') 
+                LOOP
+                    EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || r.constraint_name;
+                END LOOP;
+            END $$;
+        """)
+
         # Add customer_id column to users table if it doesn't exist
         cur.execute("""
             ALTER TABLE users 
             ADD COLUMN IF NOT EXISTS customer_id INTEGER
         """)
 
-        # Check if the constraint already exists
+        # Check if the foreign key constraint already exists
         cur.execute("""
             SELECT constraint_name 
             FROM information_schema.table_constraints 
@@ -174,7 +189,6 @@ def create_product_customers_table_and_update_users():
         cur.close()
         conn.close()
 
-# Call this function at the start of your app
 create_users_table()
 create_product_customers_table_and_update_users()
 
