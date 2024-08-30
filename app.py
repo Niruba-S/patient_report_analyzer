@@ -18,7 +18,6 @@ import string
 from botocore.exceptions import ClientError
 import os
 import boto3
-
 import os
 import tempfile
 import requests
@@ -32,6 +31,66 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 BACKEND_URL = "https://ffx5lzqebmrnwd37jfmyl4xeve0bcmvh.lambda-url.us-east-1.on.aws/"
+access_key = os.environ.get("aws_access_key")
+secret_key = os.environ.get("aws_secret_key")
+
+def get_entitlements(customer_id : str):
+    try:
+       
+        marketplace_client = boto3.client(
+            "marketplace-entitlement",
+            region_name="us-east-1",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+        entitlements = marketplace_client.get_entitlements(
+            ProductCode="db70sghlx0y4s77pfepvtx74q",
+            Filter={"CUSTOMER_IDENTIFIER": [customer_id]},
+        )
+        
+        return {
+            "status": "success",
+            "entitlements": entitlements,
+        }
+            
+    except Exception as e:
+        return {"error": str(e)}
+    
+def get_marketplace_customer_id(email):
+    print(email)
+    conn = get_db_connection()
+    if not conn:
+        logging.error("Unable to connect to the database")
+        return None
+
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT customer_id FROM users WHERE email = %s", (email,))
+        result = cur.fetchone()
+        print(result)
+        if not result:
+            logging.error(f"No user found with email: {email}")
+            return None
+        
+        user_customer_id = result[0]
+        print(user_customer_id)
+
+        cur.execute("SELECT customer_id FROM product_customers WHERE id = %s", (user_customer_id,))
+        result = cur.fetchone()
+        
+        if not result:
+            logging.error(f"No product customer found for user customer_id: {user_customer_id}")
+            return None
+        print(result[0])
+        return result[0] 
+    # This is the marketplace customer_id
+    except Exception as e:
+        logging.error(f"Error retrieving marketplace customer ID: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
 
 
 def analyze_and_summarize_pdf(file):
@@ -261,6 +320,7 @@ def signup(username, email, password, confirm_password):
                 (username, email, hashed_password, customer_id)
             )
             conn.commit()
+            st.session_state.user_email = email
             st.success("You have successfully signed up!")
             if send_welcome_email(email, username):
                 logging.info(f"Welcome email sent to {email}")
@@ -339,6 +399,7 @@ def reset_password(email):
     finally:
         cur.close()
         conn.close()
+
 
 def send_reset_email(email, new_password):
     sender_email = os.getenv("SENDER_EMAIL")
@@ -463,6 +524,9 @@ def login_page():
                         st.rerun()
                     else:
                         st.error("Invalid email or password")
+                    
+                    
+            
                 
                 if forgot_password_button:
                     if email:
@@ -496,6 +560,11 @@ def login_page():
         with col2:
             st.write("")
             st.write("")
+            
+        
+            
+            
+            
             
             
 def send_welcome_email(email, username):
@@ -717,6 +786,21 @@ def display_sidebar():
         if st.sidebar.button("  Close Menu  "):
             st.session_state.show_account_menu = False
             st.rerun()
+        customer_id = get_marketplace_customer_id(st.session_state.user_email)
+
+        result = get_entitlements(customer_id)
+        
+        if result and result["status"] == "success":
+                date = result["entitlements"]["ResponseMetadata"]["HTTPHeaders"]["date"]
+                st.sidebar.subheader(f"Subscription ends on: {date}")            
+        
+            
+        if result and result["status"] == "success":
+                # Extract the date from the response headers
+                date = result["entitlements"]["ResponseMetadata"]["HTTPHeaders"]["date"]
+                st.write(f"Entitlements Date: {date}")
+        else:
+                st.error("Unable to retrieve entitlements.")
 def main():
     if st.session_state.get('login_success'):
         set_wide_layout()
