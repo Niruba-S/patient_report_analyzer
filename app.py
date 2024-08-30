@@ -795,10 +795,7 @@ def display_sidebar():
                 st.sidebar.subheader(f"Subscription ends on: {date}")            
         
             
-        if result and result["status"] == "success":
-                # Extract the date from the response headers
-                date = result["entitlements"]["ResponseMetadata"]["HTTPHeaders"]["date"]
-                st.write(f"Entitlements Date: {date}")
+        
         else:
                 st.error("Unable to retrieve entitlements.")
 def main():
