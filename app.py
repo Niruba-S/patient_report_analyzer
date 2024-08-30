@@ -153,7 +153,7 @@ def create_product_customers_table_and_update_users():
         cur.execute("""
             SELECT constraint_name 
             FROM information_schema.table_constraints 
-            WHERE table_name = 'users' AND constraint_name = 'fk_customer_id'
+            WHERE table_name = 'users' AND constraint_name = 'fk_id'
         """)
         constraint_exists = cur.fetchone()
 
@@ -161,7 +161,7 @@ def create_product_customers_table_and_update_users():
         if not constraint_exists:
             cur.execute("""
                 ALTER TABLE users
-                ADD CONSTRAINT fk_customer_id FOREIGN KEY (customer_id) 
+                ADD CONSTRAINT fk_id FOREIGN KEY (customer_id) 
                 REFERENCES product_customers(id)
             """)
 
