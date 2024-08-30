@@ -103,7 +103,10 @@ def create_users_table():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL
+                password VARCHAR(255) NOT NULL,
+                customer_id INTEGER,
+                CONSTRAINT fk_id1 FOREIGN KEY (customer_id) 
+                REFERENCES product_customers(id)
             )
         """)
         conn.commit()
@@ -113,76 +116,38 @@ def create_users_table():
     finally:
         cur.close()
         conn.close()
-        
-def create_product_customers_table_and_update_users():
+
+def create_product_customers_table():
     conn = get_db_connection()
     if not conn:
         return
 
     cur = conn.cursor()
     try:
-        # Check if the product_customers table exists
+        # Create the product_customers table if it doesn't exist
         cur.execute("""
-            SELECT to_regclass('public.product_customers');
+            CREATE TABLE IF NOT EXISTS product_customers (
+                id SERIAL PRIMARY KEY,
+                product_code VARCHAR(100) NOT NULL,
+                customer_id VARCHAR(100) UNIQUE NOT NULL,
+                customer_aws_account_id VARCHAR(100) NOT NULL
+            )
         """)
-        table_exists = cur.fetchone()[0]
-
-        if not table_exists:
-            # If the table doesn't exist, but the sequence does, drop the sequence first
-            cur.execute("""
-                DROP SEQUENCE IF EXISTS product_customers_id_seq;
-            """)
-
-            # Now create the table
-            cur.execute("""
-                CREATE TABLE product_customers (
-                    id SERIAL PRIMARY KEY,
-                    product_code VARCHAR(100) NOT NULL,
-                    customer_id VARCHAR(100) UNIQUE NOT NULL,
-                    customer_aws_account_id VARCHAR(100) NOT NULL
-                )
-            """)
-
         
-
-        # Modify customer_id column to INTEGER to match id type in product_customers
-        cur.execute("""
-            ALTER TABLE users 
-            DROP COLUMN IF EXISTS customer_id;
-        """)
-        cur.execute("""
-            ALTER TABLE users 
-            ADD COLUMN customer_id INTEGER;
-        """)
-
-        # Check if the foreign key constraint already exists
-        cur.execute("""
-            SELECT constraint_name 
-            FROM information_schema.table_constraints 
-            WHERE table_name = 'users' AND constraint_name = 'fk_id'
-        """)
-        constraint_exists = cur.fetchone()
-
-        # Add foreign key constraint if it doesn't exist
-        if not constraint_exists:
-            cur.execute("""
-                ALTER TABLE users
-                ADD CONSTRAINT fk_id FOREIGN KEY (customer_id) 
-                REFERENCES product_customers(id)
-            """)
-
         conn.commit()
-        logging.info("Product customers table created and users table updated successfully")
+        logging.info("Product customers table created or already exists")
     except Exception as e:
         conn.rollback()
-        logging.error(f"Error creating product_customers table or updating users table: {e}")
+        logging.error(f"Error creating product_customers table: {e}")
     finally:
         cur.close()
         conn.close()
 
-# Call this function at the start of your app
+# Call these functions at the start of your app
+create_product_customers_table()
 create_users_table()
-create_product_customers_table_and_update_users()
+
+
 
 print(st.query_params)
     
@@ -256,6 +221,13 @@ def signup(username, email, password, confirm_password):
             st.error("Invalid signup link. Please use the correct URL.")
             return False
 
+        # Ensure atrs is converted to integer
+        try:
+            customer_id = int(atrs)
+        except ValueError:
+            st.error("Invalid customer ID format.")
+            return False
+
         conn = get_db_connection()
         if not conn:
             st.error("Unable to connect to the database")
@@ -264,32 +236,29 @@ def signup(username, email, password, confirm_password):
         cur = conn.cursor()
         
         try:
-            # Check if username or email already exists
+            # Check if email already exists
             cur.execute(
-                "SELECT username, email FROM users WHERE username = %s OR email = %s",
-                (username, email)
+                "SELECT email FROM users WHERE email = %s",
+                (email,)
             )
-            existing_user = cur.fetchone()
-            if existing_user:
-                if existing_user[0] == username:
-                    st.error("Username already exists")
-                else:
-                    st.error("Email already exists")
+            existing_email = cur.fetchone()
+            if existing_email:
+                st.error("Email already exists")
                 return False
 
-            # Check if the atrs value already exists in users table
+            # Check if the customer_id exists in product_customers table
             cur.execute(
-                "SELECT customer_id FROM users WHERE customer_id = %s",
-                (atrs,)
+                "SELECT id FROM product_customers WHERE id = %s",
+                (customer_id,)
             )
-            if cur.fetchone() is not None:
-                st.error("This customer ID is already associated with an account.")
+            if cur.fetchone() is None:
+                st.error("This customer ID does not exist in the product_customers table.")
                 return False
 
             # If all checks pass, proceed with user insertion
             cur.execute(
                 "INSERT INTO users (username, email, password, customer_id) VALUES (%s, %s, %s, %s)",
-                (username, email, hashed_password, atrs)
+                (username, email, hashed_password, customer_id)
             )
             conn.commit()
             st.success("You have successfully signed up!")
@@ -310,6 +279,8 @@ def signup(username, email, password, confirm_password):
         finally:
             cur.close()
             conn.close()
+
+
             
 def verify_login(email, password):
     conn = get_db_connection()
