@@ -258,7 +258,20 @@ def signup(username, email, password, confirm_password):
         cur = conn.cursor()
         
         try:
-            # First, check if the atrs value exists in product_customers table
+            # Check if username or email already exists
+            cur.execute(
+                "SELECT username, email FROM users WHERE username = %s OR email = %s",
+                (username, email)
+            )
+            existing_user = cur.fetchone()
+            if existing_user:
+                if existing_user[0] == username:
+                    st.error("Username already exists")
+                else:
+                    st.error("Email already exists")
+                return False
+
+            # Check if the atrs value already exists in users table
             cur.execute(
                 "SELECT customer_id FROM users WHERE customer_id = %s",
                 (atrs,)
@@ -267,7 +280,7 @@ def signup(username, email, password, confirm_password):
                 st.error("This customer ID is already associated with an account.")
                 return False
 
-            # If the atrs is valid, proceed with user insertion
+            # If all checks pass, proceed with user insertion
             cur.execute(
                 "INSERT INTO users (username, email, password, customer_id) VALUES (%s, %s, %s, %s)",
                 (username, email, hashed_password, atrs)
@@ -280,12 +293,13 @@ def signup(username, email, password, confirm_password):
                 logging.error(f"Failed to send welcome email to {email}")
             
             return True
-        except psycopg2.IntegrityError:
-            st.error("Username or email already exists")
+        except psycopg2.IntegrityError as e:
+            logging.error(f"IntegrityError during signup: {e}")
+            st.error(f"An error occurred during signup: {e}")
             return False
         except Exception as e:
             logging.error(f"Error during signup: {e}")
-            st.error("An error occurred during signup")
+            st.error(f"An unexpected error occurred during signup: {e}")
             return False
         finally:
             cur.close()
