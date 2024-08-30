@@ -113,9 +113,73 @@ def create_users_table():
     finally:
         cur.close()
         conn.close()
+        
+def create_product_customers_table_and_update_users():
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    cur = conn.cursor()
+    try:
+        # Check if the product_customers table exists
+        cur.execute("""
+            SELECT to_regclass('public.product_customers');
+        """)
+        table_exists = cur.fetchone()[0]
 
+        if not table_exists:
+            # If the table doesn't exist, but the sequence does, we need to drop the sequence first
+            cur.execute("""
+                DROP SEQUENCE IF EXISTS product_customers_id_seq;
+            """)
+            
+            # Now create the table
+            cur.execute("""
+                CREATE TABLE product_customers (
+                    id SERIAL PRIMARY KEY,
+                    product_code VARCHAR(100) NOT NULL,
+                    customer_id VARCHAR(100) UNIQUE NOT NULL,
+                    customer_aws_account_id VARCHAR(100) NOT NULL
+                )
+            """)
+
+        # Add customer_id column to users table if it doesn't exist
+        cur.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100)
+        """)
+
+        # Check if the constraint already exists
+        cur.execute("""
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'users' AND constraint_name = 'fk_customer_id'
+        """)
+        constraint_exists = cur.fetchone()
+
+        # Add foreign key constraint if it doesn't exist
+        if not constraint_exists:
+            cur.execute("""
+                ALTER TABLE users
+                ADD CONSTRAINT fk_customer_id
+                FOREIGN KEY (customer_id)
+                REFERENCES product_customers(customer_id)
+            """)
+
+        conn.commit()
+        logging.info("Product customers table created and users table updated successfully")
+    except Exception as e:
+        conn.rollback()
+        logging.error(f"Error creating product_customers table or updating users table: {e}")
+    finally:
+        cur.close()
+        conn.close()
 # Call this function at the start of your app
 create_users_table()
+create_product_customers_table_and_update_users()
+
+print(st.query_params)
+    
 
 def add_logo(image_url, image_size="100px"):
     try:
@@ -180,6 +244,12 @@ def signup(username, email, password, confirm_password):
     else:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         
+        # Get the atrs value from URL query parameters
+        atrs = st.query_params.get("atrs")
+        if not atrs:
+            st.error("Invalid signup link. Please use the correct URL.")
+            return False
+
         conn = get_db_connection()
         if not conn:
             st.error("Unable to connect to the database")
@@ -188,9 +258,19 @@ def signup(username, email, password, confirm_password):
         cur = conn.cursor()
         
         try:
+            # First, check if the atrs value exists in product_customers table
             cur.execute(
-                "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-                (username, email, hashed_password)
+                "SELECT customer_id FROM users WHERE customer_id = %s",
+                (atrs,)
+            )
+            if cur.fetchone() is not None:
+                st.error("This customer ID is already associated with an account.")
+                return False
+
+            # If the atrs is valid, proceed with user insertion
+            cur.execute(
+                "INSERT INTO users (username, email, password, customer_id) VALUES (%s, %s, %s, %s)",
+                (username, email, hashed_password, atrs)
             )
             conn.commit()
             st.success("You have successfully signed up!")
