@@ -541,6 +541,10 @@ def login_page():
                     forgot_password_button = st.form_submit_button(label='Forgot Password')
                 
                 if login_button:
+                    atrs = st.query_params.get("atrs")
+                    if not atrs:
+                        st.error("This application is available only on AWS Market Place. Please try to sign up thorugh AWS Marketplace portal")
+                        return False
                     login_result = verify_login(email, password)
                     if login_result:
                         st.session_state.page = "home"
