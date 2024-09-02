@@ -202,9 +202,30 @@ def create_product_customers_table():
         cur.close()
         conn.close()
 
+def add_unique_constraint_to_customer_id():
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            ALTER TABLE users
+            ADD CONSTRAINT unique_customer_id UNIQUE (customer_id);
+        """)
+        conn.commit()
+        logging.info("UNIQUE constraint added to customer_id in users table")
+    except psycopg2.Error as e:
+        conn.rollback()
+        logging.error(f"Error adding UNIQUE constraint to customer_id: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 # Call these functions at the start of your app
 create_product_customers_table()
 create_users_table()
+add_unique_constraint_to_customer_id()
 
 
 
@@ -259,6 +280,10 @@ def is_valid_password(password):
     return True
 
 def signup(username, email, password, confirm_password):
+    atrs = st.query_params.get("atrs")
+    if not atrs:
+        st.error("This application is available only on AWS Market Place. Please try to sign up thorugh AWS Marketplace portal")
+        return False
     if not is_valid_email(email):
         st.error("Please enter a valid email address")
         return False
