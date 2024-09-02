@@ -282,7 +282,7 @@ def is_valid_password(password):
 def signup(username, email, password, confirm_password):
     atrs = st.query_params.get("atrs")
     if not atrs:
-        st.error("This application is available only on AWS Market Place. Please try to sign up thorugh AWS Marketplace portal")
+        st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
         return False
     if not is_valid_email(email):
         st.error("Please enter a valid email address")
