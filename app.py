@@ -55,7 +55,50 @@ def get_entitlements(customer_id : str):
             
     except Exception as e:
         return {"error": str(e)}
+        
+def submit_usage_record(customer_identifier, product_code, dimension, quantity):
     
+
+
+    # Define the usage record
+    current_time = datetime.utcnow()
+    valid_timestamp = current_time.replace(microsecond=0)
+    usage_record = [
+        {
+            'Timestamp': valid_timestamp,
+            'CustomerIdentifier': customer_identifier,
+            'Dimension': dimension,
+            'Quantity': quantity
+        }
+    ]
+
+    # Initialize the AWS Marketplace Metering client
+    marketplace_client = boto3.client(
+        'meteringmarketplace',
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key
+    )
+
+    # Send the usage record to AWS Marketplace
+    try:
+        response = marketplace_client.batch_meter_usage(
+            UsageRecords=usage_record,
+            ProductCode=product_code
+        )
+        print("Usage record submitted successfully:", response)
+        return response
+    except Exception as e:
+        print("Error submitting usage record:", str(e))
+        return None
+
+# Example usage of the function
+response = submit_usage_record(
+    customer_identifier='Q7Zqhr53B3i',
+    product_code='db70sghlx0y4s77pfepvtx74q',
+    dimension='UsageBased',
+    quantity=1
+)
+
 def get_marketplace_customer_id(email):
     print(email)
     conn = get_db_connection()
@@ -541,10 +584,6 @@ def login_page():
                     forgot_password_button = st.form_submit_button(label='Forgot Password')
                 
                 if login_button:
-                    atrs = st.query_params.get("atrs")
-                    if not atrs:
-                        st.error("This application is available only on AWS Market Place. Please try to sign up thorugh AWS Marketplace portal")
-                        return False
                     login_result = verify_login(email, password)
                     if login_result:
                         st.session_state.page = "home"
@@ -752,11 +791,23 @@ def home_page():
     if st.session_state.content_generated:
         st.markdown("Report Analysis")
         st.write(st.session_state.text)
+        submit_usage_record(
+            customer_id,
+            product_code='db70sghlx0y4s77pfepvtx74q',
+            dimension='ReportGeneration',
+            quantity=1
+        )
 
         # Move chatbot to sidebar when content is generated
         st.sidebar.header("Chatbot🤖")
         user_input = st.sidebar.text_input("Type your message here...", key="chat_input")
         if user_input:
+            submit_usage_record(
+            customer_id,
+            product_code='db70sghlx0y4s77pfepvtx74q',
+            dimension='UsageBased',
+            quantity=1
+            )
             bot_response = chat_with_bot(user_input)
             if bot_response:
                 st.session_state.conversation.insert(0, {"role": "assistant", "content": bot_response})
