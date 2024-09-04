@@ -792,6 +792,7 @@ def home_page():
     if st.session_state.content_generated:
         st.markdown("Report Analysis")
         st.write(st.session_state.text)
+        customer_id = get_marketplace_customer_id(st.session_state.user_email)
         submit_usage_record(
             customer_id,
             product_code='db70sghlx0y4s77pfepvtx74q',
@@ -803,6 +804,7 @@ def home_page():
         st.sidebar.header("Chatbot🤖")
         user_input = st.sidebar.text_input("Type your message here...", key="chat_input")
         if user_input:
+            customer_id = get_marketplace_customer_id(st.session_state.user_email)
             submit_usage_record(
             customer_id,
             product_code='db70sghlx0y4s77pfepvtx74q',
