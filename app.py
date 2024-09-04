@@ -76,7 +76,7 @@ def submit_usage_record(customer_identifier, product_code, dimension, quantity):
     marketplace_client = boto3.client(
         'meteringmarketplace',
         aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key
+        aws_secret_access_key=secret_key,
         region_name="us-east-1"
     )
 
