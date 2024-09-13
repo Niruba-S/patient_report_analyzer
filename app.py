@@ -266,10 +266,63 @@ def add_unique_constraint_to_customer_id():
         cur.close()
         conn.close()
 
-# Call these functions at the start of your app
-create_product_customers_table()
-create_users_table()
-add_unique_constraint_to_customer_id()
+# # Call these functions at the start of your app
+# create_product_customers_table()
+# create_users_table()
+# add_unique_constraint_to_customer_id()
+def table_exists(table_name):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    cur = conn.cursor()
+    try:
+        cur.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = '{table_name}'
+            );
+        """)
+        return cur.fetchone()[0]
+    except Exception as e:
+        logging.error(f"Error checking table existence: {e}")
+        return False
+    finally:
+        cur.close()
+        conn.close()
+
+def initialize_database():
+    if not table_exists('product_customers'):
+        create_product_customers_table()
+    else:
+        logging.info("Product customers table already exists")
+
+    if not table_exists('users'):
+        create_users_table()
+    else:
+        logging.info("Users table already exists")
+
+    # Check if the unique constraint exists before adding it
+    conn = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT COUNT(*) FROM information_schema.table_constraints 
+                WHERE constraint_name = 'unique_customer_id' 
+                AND table_name = 'users';
+            """)
+            if cur.fetchone()[0] == 0:
+                add_unique_constraint_to_customer_id()
+            else:
+                logging.info("UNIQUE constraint on customer_id already exists")
+        except Exception as e:
+            logging.error(f"Error checking for unique constraint: {e}")
+        finally:
+            cur.close()
+            conn.close()
+
+# Call this function at the start of your app
+initialize_database()
 
 
 
