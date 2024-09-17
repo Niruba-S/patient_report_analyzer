@@ -93,12 +93,12 @@ def submit_usage_record(customer_identifier, product_code, dimension, quantity):
         return None
 
 # Example usage of the function
-response = submit_usage_record(
-    customer_identifier='Q7Zqhr53B3i',
-    product_code='db70sghlx0y4s77pfepvtx74q',
-    dimension='UsageBased',
-    quantity=1
-)
+# response = submit_usage_record(
+#     customer_identifier='Q7Zqhr53B3i',
+#     product_code='db70sghlx0y4s77pfepvtx74q',
+#     dimension='UsageBased',
+#     quantity=1
+# )
 
 def get_marketplace_customer_id(email):
     print(email)
