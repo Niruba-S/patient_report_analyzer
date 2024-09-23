@@ -21,6 +21,7 @@ import boto3
 import os
 import tempfile
 import requests
+import json
 
 load_dotenv()
 
@@ -33,6 +34,58 @@ logging.basicConfig(level=logging.INFO)
 BACKEND_URL = "https://ffx5lzqebmrnwd37jfmyl4xeve0bcmvh.lambda-url.us-east-1.on.aws/"
 access_key = os.environ.get("aws_access_key")
 secret_key = os.environ.get("aws_secret_key")
+
+def get_secret(secret_name, region_name):
+    # Create a session using the loaded environment variables
+    session = boto3.session.Session(
+        aws_access_key_id=os.getenv("aws_access_key"),
+        aws_secret_access_key=os.getenv("aws_secret_key"),
+        region_name=region_name
+    )
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        # Fetch the secret value
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        
+        # Return SecretString if available
+        if 'SecretString' in get_secret_value_response:
+            secret = get_secret_value_response['SecretString']
+        else:
+            secret = get_secret_value_response['SecretBinary']
+        
+        secret_dict = json.loads(secret)  # Parse secret JSON string
+        return secret_dict
+
+    except ClientError as e:
+        print(f"Error retrieving secret: {e}")
+        raise e
+
+secret_name = "rds!db-e061d516-5e06-4ae6-808e-e58ede665970"  # Replace with your secret name
+region_name = "us-east-1"  # Replace with your AWS region
+
+    # Get the secret
+credentials = get_secret(secret_name, region_name)
+
+    # Print credentials or do something with them
+RDS_DB_USER = credentials.get("username")
+RDS_DB_PASSWORD = credentials.get("password")
+    
+
+
+secret_name = "marketplace/patientlabreportanalyzer"
+credentials = get_secret(secret_name, region_name)
+RDS_DB_HOST=credentials.get("RDS_DB_HOST")
+RDS_DB_NAME=credentials.get("RDS_DB_NAME")
+bucket_name=credentials.get("bucket_name")
+region_name=credentials.get("region_name")
+SENDER_EMAIL=credentials.get("SENDER_EMAIL")
+RDS_DB_PORT=credentials.get("RDS_DB_PORT")
+
+        
 
 def get_entitlements(customer_id : str):
     try:
@@ -182,18 +235,18 @@ def chat_with_bot(user_message):
 def get_db_connection():
     try:
         return psycopg2.connect(
-            dbname=os.getenv("RDS_DB_NAME"),
-            user=os.getenv("RDS_DB_USER"),
-            password=os.getenv("RDS_DB_PASSWORD"),
-            host=os.getenv("RDS_DB_HOST"),
-            port=os.getenv("RDS_DB_PORT", 5432)
+            dbname=RDS_DB_NAME,
+            user=RDS_DB_USER,
+            password=RDS_DB_PASSWORD,
+            host=RDS_DB_HOST,
+            port=RDS_DB_PORT
         )
     except Exception as e:
         logging.error(f"Error connecting to database: {e}")
         return None
    
 # Create users table
-logging.info(f"Connecting to database: {os.getenv('RDS_DB_NAME')} on host: {os.getenv('RDS_DB_HOST')}")
+
 def create_users_table():
     conn = get_db_connection()
     if not conn:
@@ -266,7 +319,7 @@ def add_unique_constraint_to_customer_id():
         cur.close()
         conn.close()
 
-# # Call these functions at the start of your app
+# Call these functions at the start of your app
 # create_product_customers_table()
 # create_users_table()
 # add_unique_constraint_to_customer_id()
@@ -524,7 +577,7 @@ def reset_password(email):
 
 
 def send_reset_email(email, new_password):
-    sender_email = os.getenv("SENDER_EMAIL")
+    sender_email = SENDER_EMAIL
     
     message = MIMEMultipart("alternative")
     message["Subject"] = "Password Reset"
@@ -551,7 +604,7 @@ def send_reset_email(email, new_password):
     session = boto3.Session(
         aws_access_key_id=os.getenv('aws_access_key'),
         aws_secret_access_key=os.getenv('aws_secret_key'),
-        region_name=os.getenv('region_name')
+        region_name='us-east-1'
     )
     
     client = session.client('ses')
@@ -690,7 +743,7 @@ def login_page():
             
             
 def send_welcome_email(email, username):
-    sender_email = os.getenv("SENDER_EMAIL")
+    sender_email = SENDER_EMAIL
     
     message = MIMEMultipart("alternative")
     message["Subject"] = "Welcome to Gen AI Lab Report Analyzer - Let's Get Started!"
@@ -742,7 +795,7 @@ def send_welcome_email(email, username):
     session = boto3.Session(
         aws_access_key_id=os.getenv('aws_access_key'),
         aws_secret_access_key=os.getenv('aws_secret_key'),
-        region_name=os.getenv('region_name')
+        region_name='us-east-1'
     )
     
     client = session.client('ses')
